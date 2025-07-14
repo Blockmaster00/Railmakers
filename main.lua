@@ -13,21 +13,24 @@ local points = {
     tm.vector3.Create(400, 300, 200),
 }
 
+
 local gen = railmakers.MakeRailGenerator(points)
 
 function update()
-    if coroutine.status(gen) ~= "dead" then
-        local ok, stepOrErr = coroutine.resume(gen)
-        if not ok then
-            tm.os.Log("RailGen error:".. stepOrErr)
-        else
-            tm.os.Log("Built segment:".. stepOrErr)
+    if gen then
+        if coroutine.status(gen) ~= "dead" then
+            local ok, stepOrErr = coroutine.resume(gen)
+            if not ok then
+                tm.os.Log("RailGen error:".. stepOrErr)
+            else
+                tm.os.Log("Built segment:".. tostring(stepOrErr))
+            end
+        elseif coroutine.status(gen) == "dead" then
+            tm.os.Log("RailGen finished")
+            tm.os.Log("loading rail mesh")
+            tm.physics.AddMesh("data_dynamic_willNotBeUploadedToWorkshop/rail.obj", "rail")
+            tm.physics.SpawnCustomObjectConcave(points[1], "rail", "")
+            gen = nil -- reset generator
         end
-    elseif coroutine.status(gen) == "dead" then
-        tm.os.Log("RailGen finished")
-        tm.os.Log("loading rail mesh")
-        tm.physics.AddMesh("data_dynamic_willNotBeUploadedToWorkshop/rail.obj", "rail")
-        tm.physics.SpawnCustomObjectConcave(points[1], "rail", "")
-        gen = nil -- reset generator
     end
 end

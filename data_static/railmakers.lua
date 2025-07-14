@@ -63,39 +63,36 @@ local function buildRailCoroutine(side, splinePoints, pivot, addV, addUV, addN, 
 
     -- 3) Incrementally build mesh, yielding each segment
     for i = 1, #sections - 1 do
-        local cur, nxt                 = sections[i], sections[i + 1]
-        local seg                      = (nxt.pos - cur.pos).Magnitude()
-        local v0, totalLen             = totalLen * uv_scale, totalLen + seg
-        local v1                       = totalLen * uv_scale
-
-        local verts, uvs, norms, faces = {}, {}, {}, {}
-        local vCount, uvCount, nCount  = 0, 0, 0
+        local cur, nxt     = sections[i], sections[i + 1]
+        local seg          = (nxt.pos - cur.pos).Magnitude()
+        local v0, totalLen = totalLen * uv_scale, totalLen + seg
+        local v1           = totalLen * uv_scale
 
         -- UVs for this slice
-        cur.uv                         = {
+        cur.uv             = {
             addUV(0, v0), addUV(1, v0),
             addUV(1, v0), addUV(0, v0),
         }
-        nxt.uv                         = {
+        nxt.uv             = {
             addUV(0, v1), addUV(1, v1),
             addUV(1, v1), addUV(0, v1),
         }
 
         -- normals
-        local nTop                     = addN(0, 1, 0)
-        local nBot                     = addN(0, -1, 0)
+        local nTop         = addN(0, 1, 0)
+        local nBot         = addN(0, -1, 0)
 
         -- world-space side normals
-        local outN                     = functions.RotateVectorByQuaternion(
+        local outN         = functions.RotateVectorByQuaternion(
             tm.vector3.Create(side, 0, 0), cur.rot
         )
-        local inN                      = functions.RotateVectorByQuaternion(
+        local inN          = functions.RotateVectorByQuaternion(
             tm.vector3.Create(-side, 0, 0), cur.rot
         )
-        local nOut                     = addN(outN.x, outN.y, outN.z)
-        local nIn                      = addN(inN.x, inN.y, inN.z)
+        local nOut         = addN(outN.x, outN.y, outN.z)
+        local nIn          = addN(inN.x, inN.y, inN.z)
 
-        local flip                     = side < 0
+        local flip         = side < 0
 
         -- Top quad
         if not flip then
@@ -258,12 +255,29 @@ function r.MakeRailGenerator(points)
         --coroutine.yield() -- optional pause between rails
         buildRailCoroutine(1, splinePoints, pivot, addV, addUV, addN, quad)
         -- After both rails: write & spawn
-        tm.os.Log("Railmakers: Built " .. vCount .. " vertices, " .. uvCount .. " UVs, " .. nCount .. " normals, " .. #faces .. " faces")
-        local out = { "# Rail", "o Rail" }
+        tm.os.Log("Railmakers: Built " ..
+            vCount .. " vertices, " .. uvCount .. " UVs, " .. nCount .. " normals, " .. #faces .. " faces")
+        local out = { "o Rail" }
         for _, v in ipairs(verts) do out[#out + 1] = v end
         for _, vt in ipairs(uvs) do out[#out + 1] = vt end
         for _, vn in ipairs(norms) do out[#out + 1] = vn end
         for _, f in ipairs(faces) do out[#out + 1] = f end
+
+        tm.os.Log("Railmakers: Validating mesh data")
+        tm.os.Log("Vertices count: " .. vCount)
+        tm.os.Log("UV count: " .. uvCount)
+        tm.os.Log("Normal count: " .. nCount)
+
+        local maxV, maxVT, maxVN = 0, 0, 0
+        for _, line in ipairs(faces) do
+            for v, vt, vn in line:gmatch("(%d+)/(%d+)/(%d+)") do
+                v, vt, vn = tonumber(v), tonumber(vt), tonumber(vn)
+                maxV      = math.max(maxV, v)
+                maxVT     = math.max(maxVT, vt)
+                maxVN     = math.max(maxVN, vn)
+            end
+        end
+        tm.os.Log("Highest referenced face indices: v=" .. maxV .. " vt=" .. maxVT .. " vn=" .. maxVN)
 
         tm.os.Log("Railmakers: Writing rail mesh to file")
         tm.os.WriteAllText_Dynamic("rail.obj", table.concat(out, "\n"))
